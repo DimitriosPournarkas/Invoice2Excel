@@ -41,7 +41,7 @@ def parse_invoice(text: str) -> dict:
         Ein Dictionary mit den erkannten Feldern. Felder, die nicht
         gefunden wurden, enthalten None.
     """
-    data = {
+    return {
         "rechnungsnummer": _extract_rechnungsnummer(text),
         "datum": _extract_datum(text),
         "lieferant": _extract_lieferant(text),
@@ -52,7 +52,6 @@ def parse_invoice(text: str) -> dict:
         "iban": _extract_iban(text),
         "positionen": _extract_positionen(text),
     }
-    return data
 
 
 def _extract_rechnungsnummer(text: str) -> str | None:
