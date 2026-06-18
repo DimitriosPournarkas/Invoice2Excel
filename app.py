@@ -151,7 +151,9 @@ def _save_to_db_once(uploaded_file, invoice_data: dict, selected_category: str, 
 
 
 if uploaded_files:
-    Path("output").mkdir(exist_ok=True)
+    _data_dir = Path(os.environ.get("INVOICE2EXCEL_DATA_DIR", "."))
+    output_dir = _data_dir / "output"
+    output_dir.mkdir(exist_ok=True)
 
     if len(uploaded_files) == 1 or not combine_files:
         # Single file, or multiple files processed individually
@@ -167,7 +169,7 @@ if uploaded_files:
             # Use the uploaded PDF's filename for the Excel output
             # (e.g. "Rechnung1.pdf" -> "Rechnung1.xlsx")
             pdf_stem = Path(uploaded_file.name).stem
-            output_path = Path("output") / f"{pdf_stem}.xlsx"
+            output_path = output_dir / f"{pdf_stem}.xlsx"
             export_to_excel(invoice_data, str(output_path))
 
             db_key = f"saved_to_db::{uploaded_file.file_id}"
