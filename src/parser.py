@@ -47,16 +47,16 @@ def parse_invoice(text: str) -> dict:
     """
     amounts = _extract_amounts(text)
     return {
-        "rechnungsnummer": _extract_invoice_number(text),
-        "datum": _extract_date(text),
-        "lieferant": _extract_vendor(text),
-        "betrag_netto": amounts["net"],
-        "mwst": amounts["vat"],
-        "betrag_brutto": amounts["gross"],
-        "currency": _extract_currency(text),
-        "iban": _extract_iban(text),
-        "positionen": _extract_line_items(text),
-    }
+    "rechnungsnummer": _extract_invoice_number(text) or "",
+    "datum": _extract_date(text) or "",
+    "lieferant": _extract_vendor(text) or "",
+    "betrag_netto": amounts["net"],
+    "mwst": amounts["vat"],
+    "betrag_brutto": amounts["gross"],
+    "currency": _extract_currency(text),
+    "iban": _extract_iban(text) or "",
+    "positionen": _extract_line_items(text),
+}
 
 
 def _extract_invoice_number(text: str) -> str | None:

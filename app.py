@@ -20,6 +20,7 @@ st.set_page_config(page_title="Invoice2Excel", page_icon="🧾")
 st.title("🧾 Invoice2Excel")
 st.write("PDF-Rechnung(en) hochladen, Daten automatisch extrahieren und als Excel exportieren.")
 
+# --- Datei-Upload ---
 uploaded_files = st.file_uploader(
     "PDF-Rechnung(en) auswählen", type=["pdf"], accept_multiple_files=True
 )
@@ -29,6 +30,67 @@ if uploaded_files and len(uploaded_files) > 1:
     combine_files = st.checkbox(
         "Alle Rechnungen in eine Excel-Datei zusammenfassen", value=False
     )
+
+# --- Ordner scannen ---
+st.divider()
+st.subheader("📂 Ordner scannen")
+st.write("Alle PDFs in einem lokalen Ordner auf einmal einlesen und direkt in DB speichern.")
+
+folder_path = st.text_input(
+    "Ordnerpfad",
+    placeholder=r"z.B. C:\Rechnungen\2026",
+    help="Absoluter Pfad zum Ordner mit den PDF-Rechnungen.",
+)
+
+scan_clicked = st.button("🔍 Ordner scannen", disabled=not folder_path)
+
+if scan_clicked and folder_path:
+    folder = Path(folder_path.strip())
+    if not folder.exists():
+        st.error(f"Ordner nicht gefunden: {folder}")
+    elif not folder.is_dir():
+        st.error(f"Das ist kein Ordner: {folder}")
+    else:
+        pdf_files = sorted(folder.glob("*.pdf"))
+        if not pdf_files:
+            st.warning(f"Keine PDF-Dateien in {folder} gefunden.")
+        else:
+            st.info(f"{len(pdf_files)} PDF(s) gefunden – werden jetzt verarbeitet...")
+            Path("output").mkdir(exist_ok=True)
+            erfolge = 0
+            fehler = []
+            fortschritt = st.progress(0)
+
+            for i, pdf_path in enumerate(pdf_files):
+                try:
+                    text = extract_text_from_pdf(str(pdf_path))
+                    invoice_data = parse_invoice(text)
+                    invoice_data["source_file"] = pdf_path.name
+
+                    category = suggest_category(invoice_data)
+                    invoice_data["category"] = category
+
+                    output_path = Path("output") / f"{pdf_path.stem}.xlsx"
+                    export_to_excel(invoice_data, str(output_path))
+                    save_invoice_to_db(invoice_data, category=category)
+                    erfolge += 1
+
+                except Exception as e:
+                    fehler.append((pdf_path.name, str(e)))
+
+                fortschritt.progress((i + 1) / len(pdf_files))
+
+            if erfolge:
+                st.success(
+                    f"{erfolge} Rechnung(en) verarbeitet, als Excel exportiert "
+                    f"und in DB gespeichert ✅"
+                )
+            if fehler:
+                with st.expander(f"⚠️ {len(fehler)} Fehler beim Verarbeiten"):
+                    for name, err in fehler:
+                        st.write(f"**{name}**: {err}")
+
+st.divider()
 
 CATEGORY_OPTIONS = get_categories()
 
@@ -46,9 +108,6 @@ def _process_pdf(uploaded_file) -> dict:
         os.unlink(tmp_path)
 
 
-# Bekannte Felder in sinnvoller Reihenfolge mit Anzeige-Label. Felder, die
-# der Parser zusätzlich liefert (z.B. eine Adresse) und die hier nicht
-# gelistet sind, werden trotzdem automatisch editierbar gemacht.
 FIELD_LABELS = {
     "rechnungsnummer": "Rechnungsnummer",
     "datum": "Datum (TT.MM.JJJJ)",
@@ -64,14 +123,6 @@ EXCLUDED_FIELDS = {"category", "tags", "source_file"}
 
 
 def _editable_invoice_form(invoice_data: dict, widget_key: str) -> dict:
-    """Shows editable inputs for every scalar field the parser extracted, so
-    the user can correct anything that was read wrong - falsches Datum,
-    falscher Name/Lieferant, falsche Adresse, falsche Beträge, etc.
-
-    Works generically: any scalar key present in invoice_data gets an input
-    field automatically, even ones not explicitly listed in FIELD_LABELS, so
-    future parser fields are editable without changing this code.
-    """
     updated = dict(invoice_data)
 
     scalar_keys = [
@@ -80,7 +131,6 @@ def _editable_invoice_form(invoice_data: dict, widget_key: str) -> dict:
         and key not in EXCLUDED_FIELDS
         and not isinstance(value, (list, dict))
     ]
-    # Bekannte Felder zuerst in der Reihenfolge oben, unbekannte danach.
     ordered_keys = [k for k in FIELD_LABELS if k in scalar_keys]
     ordered_keys += [k for k in scalar_keys if k not in ordered_keys]
 
@@ -102,8 +152,6 @@ def _editable_invoice_form(invoice_data: dict, widget_key: str) -> dict:
                     key=f"{key}::{widget_key}",
                 )
 
-    # Positionen (Artikel/Mengen) werden hier nur read-only angezeigt - eine
-    # editierbare Tabelle dafür wäre ein separater Schritt.
     if invoice_data.get("positionen"):
         with st.expander("Positionen (Artikel)"):
             st.json(invoice_data["positionen"])
@@ -112,11 +160,6 @@ def _editable_invoice_form(invoice_data: dict, widget_key: str) -> dict:
 
 
 def _category_picker(invoice_data: dict, widget_key: str) -> tuple[str, str]:
-    """Shows a dropdown pre-filled with the automatically suggested category.
-
-    Returns a tuple (selected_category, suggested_category) so the caller can
-    later detect whether the user overrode the automatic suggestion.
-    """
     suggested = suggest_category(invoice_data)
     options = CATEGORY_OPTIONS if suggested in CATEGORY_OPTIONS else CATEGORY_OPTIONS + [suggested]
     default_index = options.index(suggested)
@@ -132,10 +175,6 @@ def _category_picker(invoice_data: dict, widget_key: str) -> tuple[str, str]:
 
 
 def _save_to_db_once(uploaded_file, invoice_data: dict, selected_category: str, suggested_category: str) -> None:
-    """Saves an invoice to the database exactly once per uploaded file, even
-    if Streamlit reruns this script. Logs a correction entry whenever the
-    user picked a different category than the automatic suggestion, so the
-    categorizer can be improved later."""
     db_key = f"saved_to_db::{uploaded_file.file_id}"
     invoice_id = save_invoice_to_db(invoice_data, category=selected_category)
 
@@ -151,12 +190,9 @@ def _save_to_db_once(uploaded_file, invoice_data: dict, selected_category: str, 
 
 
 if uploaded_files:
-    _data_dir = Path(os.environ.get("INVOICE2EXCEL_DATA_DIR", "."))
-    output_dir = _data_dir / "output"
-    output_dir.mkdir(exist_ok=True)
+    Path("output").mkdir(exist_ok=True)
 
     if len(uploaded_files) == 1 or not combine_files:
-        # Single file, or multiple files processed individually
         for uploaded_file in uploaded_files:
             invoice_data = _process_pdf(uploaded_file)
 
@@ -166,10 +202,8 @@ if uploaded_files:
             category, suggested_category = _category_picker(invoice_data, widget_key=uploaded_file.file_id)
             invoice_data["category"] = category
 
-            # Use the uploaded PDF's filename for the Excel output
-            # (e.g. "Rechnung1.pdf" -> "Rechnung1.xlsx")
             pdf_stem = Path(uploaded_file.name).stem
-            output_path = output_dir / f"{pdf_stem}.xlsx"
+            output_path = Path("output") / f"{pdf_stem}.xlsx"
             export_to_excel(invoice_data, str(output_path))
 
             db_key = f"saved_to_db::{uploaded_file.file_id}"
@@ -200,7 +234,6 @@ if uploaded_files:
             st.divider()
 
     else:
-        # Multiple files combined into a single Excel file
         invoices_data = []
         categories = {}
         suggested_categories = {}
