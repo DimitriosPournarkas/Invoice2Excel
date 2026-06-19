@@ -1,12 +1,11 @@
 """
 Invoice2Excel - Streamlit main application
-Uploads one or more PDF invoices, extracts structured data and exports it
-to Excel (optionally also storing it in a SQLite database).
 """
 
 import streamlit as st
 import tempfile
 import os
+import pandas as pd
 from pathlib import Path
 
 from src.extractor import extract_text_from_pdf
@@ -66,25 +65,18 @@ if scan_clicked and folder_path:
                     text = extract_text_from_pdf(str(pdf_path))
                     invoice_data = parse_invoice(text)
                     invoice_data["source_file"] = pdf_path.name
-
                     category = suggest_category(invoice_data)
                     invoice_data["category"] = category
-
                     output_path = Path("output") / f"{pdf_path.stem}.xlsx"
                     export_to_excel(invoice_data, str(output_path))
                     save_invoice_to_db(invoice_data, category=category)
                     erfolge += 1
-
                 except Exception as e:
                     fehler.append((pdf_path.name, str(e)))
-
                 fortschritt.progress((i + 1) / len(pdf_files))
 
             if erfolge:
-                st.success(
-                    f"{erfolge} Rechnung(en) verarbeitet, als Excel exportiert "
-                    f"und in DB gespeichert ✅"
-                )
+                st.success(f"{erfolge} Rechnung(en) verarbeitet, als Excel exportiert und in DB gespeichert ✅")
             if fehler:
                 with st.expander(f"⚠️ {len(fehler)} Fehler beim Verarbeiten"):
                     for name, err in fehler:
@@ -96,11 +88,9 @@ CATEGORY_OPTIONS = get_categories()
 
 
 def _process_pdf(uploaded_file) -> dict:
-    """Extracts text from an uploaded PDF and parses it into invoice data."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(uploaded_file.read())
         tmp_path = tmp.name
-
     try:
         text = extract_text_from_pdf(tmp_path)
         return parse_invoice(text)
@@ -121,10 +111,21 @@ FIELD_LABELS = {
 NUMBER_FIELDS = {"betrag_netto", "mwst", "betrag_brutto"}
 EXCLUDED_FIELDS = {"category", "tags", "source_file"}
 
+# Spalten-Konfiguration für den Positionen-Editor
+POSITIONEN_COLUMN_CONFIG = {
+    "artikel":      st.column_config.TextColumn("Artikel / Beschreibung", width="large"),
+    "menge":        st.column_config.NumberColumn("Menge", format="%.2f", width="small"),
+    "einzelpreis":  st.column_config.NumberColumn("Einzelpreis (€)", format="%.2f", width="small"),
+    "gesamtpreis":  st.column_config.NumberColumn("Gesamtpreis (€)", format="%.2f", width="small"),
+    "zeitraum":     st.column_config.TextColumn("Zeitraum", width="medium"),
+}
+
 
 def _editable_invoice_form(invoice_data: dict, widget_key: str) -> dict:
+    """Editierbares Formular für alle erkannten Rechnungsfelder inkl. Positionen."""
     updated = dict(invoice_data)
 
+    # --- Skalare Felder ---
     scalar_keys = [
         key for key, value in invoice_data.items()
         if key != "positionen"
@@ -152,9 +153,32 @@ def _editable_invoice_form(invoice_data: dict, widget_key: str) -> dict:
                     key=f"{key}::{widget_key}",
                 )
 
-    if invoice_data.get("positionen"):
-        with st.expander("Positionen (Artikel)"):
-            st.json(invoice_data["positionen"])
+    # --- Positionen editierbar ---
+    positionen = invoice_data.get("positionen") or []
+    st.write("**Positionen**")
+
+    # Sicherstellen dass alle erwarteten Spalten vorhanden sind
+    default_row = {"artikel": "", "menge": 1.0, "einzelpreis": 0.0, "gesamtpreis": 0.0}
+    positionen_normalized = [
+        {**default_row, **pos} for pos in positionen
+    ]
+
+    df = pd.DataFrame(positionen_normalized) if positionen_normalized else pd.DataFrame(columns=list(default_row.keys()))
+
+    edited_df = st.data_editor(
+        df,
+        key=f"positionen::{widget_key}",
+        num_rows="dynamic",
+        use_container_width=True,
+        column_config=POSITIONEN_COLUMN_CONFIG,
+        hide_index=True,
+    )
+
+    # Leere Zeilen (kein Artikel) rausfiltern
+    updated["positionen"] = [
+        row for row in edited_df.to_dict("records")
+        if str(row.get("artikel", "")).strip()
+    ]
 
     return updated
 
@@ -163,7 +187,6 @@ def _category_picker(invoice_data: dict, widget_key: str) -> tuple[str, str]:
     suggested = suggest_category(invoice_data)
     options = CATEGORY_OPTIONS if suggested in CATEGORY_OPTIONS else CATEGORY_OPTIONS + [suggested]
     default_index = options.index(suggested)
-
     selected = st.selectbox(
         "Kategorie",
         options=options,
@@ -177,7 +200,6 @@ def _category_picker(invoice_data: dict, widget_key: str) -> tuple[str, str]:
 def _save_to_db_once(uploaded_file, invoice_data: dict, selected_category: str, suggested_category: str) -> None:
     db_key = f"saved_to_db::{uploaded_file.file_id}"
     invoice_id = save_invoice_to_db(invoice_data, category=selected_category)
-
     if selected_category != suggested_category:
         save_correction(
             invoice_id=invoice_id,
@@ -185,7 +207,6 @@ def _save_to_db_once(uploaded_file, invoice_data: dict, selected_category: str, 
             new_category=selected_category,
             invoice_data=invoice_data,
         )
-
     st.session_state[db_key] = invoice_id
 
 
@@ -221,11 +242,7 @@ if uploaded_files:
                     )
             with col2:
                 if already_saved:
-                    st.button(
-                        "✅ In Datenbank gespeichert",
-                        disabled=True,
-                        key=f"db_done::{uploaded_file.file_id}",
-                    )
+                    st.button("✅ In Datenbank gespeichert", disabled=True, key=f"db_done::{uploaded_file.file_id}")
                 else:
                     if st.button("💾 In Datenbank speichern", key=f"db_save::{uploaded_file.file_id}"):
                         _save_to_db_once(uploaded_file, invoice_data, category, suggested_category)
@@ -249,7 +266,6 @@ if uploaded_files:
             invoice_data["category"] = category
             categories[uploaded_file.file_id] = category
             suggested_categories[uploaded_file.file_id] = suggested_category
-
             invoices_data.append(invoice_data)
 
         output_path = Path("output") / "Rechnungen_Sammelexport.xlsx"
@@ -270,15 +286,13 @@ if uploaded_files:
                     db_key = f"saved_to_db::{uploaded_file.file_id}"
                     if st.session_state.get(db_key) is None:
                         _save_to_db_once(
-                            uploaded_file,
-                            invoice_data,
+                            uploaded_file, invoice_data,
                             categories[uploaded_file.file_id],
                             suggested_categories[uploaded_file.file_id],
                         )
                 st.success("Alle Rechnungen in Datenbank gespeichert ✅")
                 st.rerun()
 
-# Optional section: show invoices previously saved to the database
 with st.expander("📊 Gespeicherte Rechnungen (Datenbank)"):
     invoices = get_all_invoices()
     if invoices:

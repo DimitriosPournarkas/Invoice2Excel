@@ -7,3 +7,5 @@ test.py
 invoices.db
 test_parser.py
 database.py
+build/Invoice2Excel/base_library.zip
+Invoice2Excel.spec
