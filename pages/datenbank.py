@@ -7,8 +7,9 @@ Streamlit-Sidebar-Navigation (liegt im pages/-Ordner neben app.py).
 
 import streamlit as st
 import pandas as pd
+import json
 
-from src.database import get_all_invoices, update_invoice, delete_invoice
+from src.database import get_all_invoices, update_invoice, delete_invoice, get_invoice_by_id
 from src.categorizer import get_categories
 
 st.set_page_config(page_title="Datenbank", page_icon="🗄️")
@@ -119,3 +120,61 @@ with col2:
                 delete_invoice(int(invoice_id))
             st.success(f"{len(to_delete)} Rechnung(en) gelöscht ✅")
             st.rerun()
+
+
+# =========================================================
+# Positionen einer einzelnen Rechnung bearbeiten
+# =========================================================
+
+st.divider()
+st.subheader("📦 Positionen bearbeiten")
+st.write("Artikel, Mengen und Preise einer einzelnen Rechnung korrigieren.")
+
+invoice_options = {
+    f"#{inv['id']} – {inv.get('lieferant') or 'unbekannt'} ({inv.get('datum') or 'kein Datum'})": inv["id"]
+    for inv in invoices
+}
+
+selected_label = st.selectbox(
+    "Rechnung auswählen",
+    options=list(invoice_options.keys()),
+)
+selected_id = invoice_options[selected_label]
+
+# Volle Rechnung inkl. geparster Positionen laden (get_all_invoices liefert
+# "positionen" nur als roher JSON-Text, hier brauchen wir die echte Liste).
+selected_invoice = get_invoice_by_id(selected_id)
+positionen = selected_invoice.get("positionen") or []
+
+default_row = {"artikel": "", "menge": 1.0, "einzelpreis": 0.0, "gesamtpreis": 0.0}
+positionen_normalized = [{**default_row, **pos} for pos in positionen]
+pos_df = (
+    pd.DataFrame(positionen_normalized)
+    if positionen_normalized
+    else pd.DataFrame(columns=list(default_row.keys()))
+)
+
+POSITIONEN_COLUMN_CONFIG = {
+    "artikel": st.column_config.TextColumn("Artikel / Beschreibung", width="large"),
+    "menge": st.column_config.NumberColumn("Menge", format="%.2f", width="small"),
+    "einzelpreis": st.column_config.NumberColumn("Einzelpreis (€)", format="%.2f", width="small"),
+    "gesamtpreis": st.column_config.NumberColumn("Gesamtpreis (€)", format="%.2f", width="small"),
+}
+
+edited_pos_df = st.data_editor(
+    pos_df,
+    key=f"positionen_editor::{selected_id}",
+    num_rows="dynamic",
+    use_container_width=True,
+    column_config=POSITIONEN_COLUMN_CONFIG,
+    hide_index=True,
+)
+
+if st.button("💾 Positionen speichern"):
+    cleaned_positionen = [
+        row for row in edited_pos_df.to_dict("records")
+        if str(row.get("artikel", "")).strip()
+    ]
+    update_invoice(selected_id, positionen=json.dumps(cleaned_positionen, ensure_ascii=False))
+    st.success(f"Positionen für Rechnung #{selected_id} gespeichert ✅")
+    st.rerun()

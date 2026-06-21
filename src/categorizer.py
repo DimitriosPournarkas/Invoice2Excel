@@ -11,77 +11,120 @@ from typing import List, Dict, Optional
 
 # =========================================================
 # Category Definitions
+#
+# Keywords are matched against German invoice text, so each category
+# carries German terms as the primary set. English terms are kept
+# alongside them since some vendors (especially IT/SaaS) use English
+# product names and line items even on German invoices.
 # =========================================================
 
 CATEGORIES = {
     "IT / Software": {
         "keywords": [
-            "software", "license", "cloud", "hosting", "server",
-            "development", "programming", "api", "database",
+            # Deutsch
+            "software", "lizenz", "cloud", "hosting", "server",
+            "entwicklung", "programmierung", "datenbank",
+            "wartung", "support", "kundendienst", "abonnement",
+            "verlängerung", "domain", "webseite", "webhosting",
+            # English
+            "license", "development", "programming", "api", "database",
             "aws", "azure", "google cloud", "microsoft", "adobe",
             "jetbrains", "github", "gitlab", "jira", "confluence",
             "saas", "paas", "iaas", "subscription", "renewal",
-            "maintenance", "support", "helpdesk", "service desk"
+            "maintenance", "helpdesk", "service desk"
         ],
         "weight": 2
     },
     "Office / Administration": {
         "keywords": [
-            "office", "supplies", "paper", "printer", "toner",
-            "desk", "chair", "filing", "stationery",
-            "envelope", "shipping", "postage", "mailing",
-            "cleaning", "janitorial", "maintenance"
+            # Deutsch
+            "büro", "büromaterial", "büroartikel", "papier", "drucker",
+            "toner", "schreibtisch", "stuhl", "ablage", "umschlag",
+            "versand", "porto", "reinigung",
+            # English
+            "office", "supplies", "printer", "desk", "chair",
+            "filing", "stationery", "envelope", "shipping",
+            "postage", "mailing", "janitorial"
         ],
         "weight": 1
     },
     "Marketing / Advertising": {
         "keywords": [
-            "marketing", "advertising", "ad", "social media",
-            "facebook", "instagram", "google ads", "seo", "sem",
-            "content", "blog", "newsletter", "email marketing",
-            "campaign", "branding", "design", "graphic",
-            "video", "production", "agency", "creative"
+            # Deutsch
+            "werbung", "anzeige", "soziale medien", "inhalt",
+            "newsletter", "kampagne", "grafik", "agentur", "kreativ",
+            "marketingagentur", "webdesign",
+            # English
+            "marketing", "advertising", "ad", "facebook", "instagram",
+            "google ads", "seo", "sem", "content", "blog",
+            "email marketing", "campaign", "branding", "design",
+            "graphic", "video", "production", "creative"
         ],
         "weight": 1
     },
     "Consulting / Professional Services": {
         "keywords": [
+            # Deutsch
+            "beratung", "beratungsleistung", "berater", "strategie",
+            "coaching", "schulung", "workshop", "gutachten",
+            "bewertung", "prüfung", "wirtschaftsprüfung", "moderation",
+            # English
             "consulting", "consultancy", "advisory", "analysis",
-            "strategy", "coaching", "training", "workshop",
-            "facilitation", "mediation", "expertise", "assessment",
-            "evaluation", "review", "audit", "compliance"
+            "training", "facilitation", "mediation", "expertise",
+            "assessment", "evaluation", "review", "audit", "compliance"
         ],
         "weight": 1
     },
     "Purchases / Inventory": {
         "keywords": [
-            "purchase", "product", "material", "delivery", "shipping",
-            "order", "component", "raw material", "packaging",
-            "logistics", "warehouse", "inventory", "stock",
-            "parts", "equipment", "machinery", "tools"
+            # Deutsch
+            "einkauf", "produkt", "material", "lieferung", "bestellung",
+            "komponente", "rohmaterial", "verpackung", "logistik",
+            "lager", "bestand", "teile", "ausrüstung", "maschinen",
+            "ersatzteile", "zubehör",
+            # English
+            "purchase", "product", "delivery", "order", "component",
+            "raw material", "packaging", "warehouse", "inventory",
+            "stock", "parts", "equipment", "machinery", "tools"
         ],
         "weight": 1
     },
     "Travel / Expenses": {
         "keywords": [
-            "travel", "hotel", "flight", "train", "accommodation",
-            "breakfast", "meal", "per diem", "taxi",
-            "rental car", "parking", "toll", "mileage",
-            "ticket", "transportation", "business trip"
+            # Deutsch
+            "reise", "hotel", "flug", "zug", "unterkunft", "frühstück",
+            "verpflegung", "taxi", "mietwagen", "parken", "maut",
+            "kilometerpauschale", "fahrkarte", "geschäftsreise",
+            "spesen", "bahnticket", "übernachtung",
+            # English
+            "travel", "flight", "train", "accommodation",
+            "breakfast", "meal", "per diem", "rental car", "parking",
+            "toll", "mileage", "ticket", "transportation", "business trip"
         ],
         "weight": 1
     },
     "Insurance": {
         "keywords": [
-            "insurance", "liability", "legal protection",
-            "property", "content", "vehicle",
-            "accident", "professional liability", "policy", "premium",
+            # Deutsch
+            "versicherung", "haftpflicht", "rechtsschutz",
+            "sachversicherung", "inhaltsversicherung",
+            "fahrzeugversicherung", "unfall", "berufshaftpflicht",
+            "police", "prämie", "betriebsversicherung",
+            "krankenversicherung", "kfz-versicherung",
+            # English
+            "liability", "legal protection", "property", "content",
+            "vehicle", "accident", "professional liability", "premium",
             "business insurance", "workers comp", "health"
         ],
         "weight": 1
     },
     "Taxes / Fees": {
         "keywords": [
+            # Deutsch
+            "steuer", "steuern", "finanzamt", "gebühr", "lizenzgebühr",
+            "anmeldung", "genehmigung", "grundsteuer", "lohnsteuer",
+            "umsatzsteuer", "zoll", "steuernummer", "ust-id",
+            # English
             "tax", "taxes", "irs", "tax office", "assessment",
             "fee", "license fee", "registration", "permit",
             "property tax", "payroll tax", "sales tax",
@@ -91,53 +134,85 @@ CATEGORIES = {
     },
     "Rent / Real Estate": {
         "keywords": [
+            # Deutsch
+            "miete", "pacht", "immobilie", "gebäude", "büroraum",
+            "lagerhalle", "nebenkosten", "strom", "wasser", "gas",
+            "internet", "telefon", "festnetz", "kaution",
+            # English
             "rent", "lease", "property", "building",
             "office space", "warehouse", "storage",
             "maintenance fee", "utilities", "electricity",
-            "water", "gas", "internet", "phone", "landline"
+            "water", "phone", "landline"
         ],
         "weight": 1
     },
     "Personnel / Payroll": {
         "keywords": [
+            # Deutsch
+            "gehalt", "lohn", "vergütung", "mitarbeiter", "personal",
+            "sozialversicherung", "rente", "bonus", "überstunden",
+            "sozialleistungen", "lohnabrechnung",
+            # English
             "payroll", "salary", "wages", "compensation",
-            "employee", "staff", "worker", "personnel",
-            "social security", "health insurance", "pension",
-            "bonus", "overtime", "benefits", "401k"
+            "employee", "staff", "worker", "social security",
+            "health insurance", "pension", "overtime", "benefits", "401k"
         ],
         "weight": 1
     },
     "Training / Education": {
         "keywords": [
+            # Deutsch
+            "schulung", "weiterbildung", "fortbildung", "seminar",
+            "kurs", "zertifizierung", "konferenz", "tagung",
+            "akademie", "lernen", "webinar", "ausbildung",
+            # English
             "training", "education", "professional development",
-            "seminar", "course", "certification", "workshop",
+            "course", "certification", "workshop",
             "conference", "summit", "academy", "learning",
-            "e-learning", "webinar", "tutorial"
+            "e-learning", "tutorial"
         ],
         "weight": 1
     },
     "Healthcare / Medical": {
         "keywords": [
-            "medical", "health", "dental", "vision",
-            "doctor", "hospital", "clinic", "pharmacy",
-            "prescription", "therapy", "rehabilitation",
-            "healthcare", "wellness", "examination"
+            # Deutsch
+            "medizinisch", "gesundheit", "zahn", "arzt", "krankenhaus",
+            "klinik", "apotheke", "rezept", "therapie", "reha",
+            "gesundheitswesen", "untersuchung", "facharzt",
+            # English
+            "medical", "health", "dental", "vision", "doctor",
+            "hospital", "clinic", "pharmacy", "prescription",
+            "rehabilitation", "healthcare", "wellness", "examination"
         ],
         "weight": 1
     },
     "Legal / Law": {
         "keywords": [
+            # Deutsch
+            "rechtlich", "anwalt", "rechtsanwalt", "rechtsberatung",
+            "vertrag", "vereinbarung", "klage", "vergleich",
+            "geistiges eigentum", "marke", "patent", "urheberrecht",
+            "kanzlei", "notar",
+            # English
             "legal", "lawyer", "attorney", "legal services",
-            "contract", "agreement", "litigation", "settlement",
-            "intellectual property", "trademark", "patent",
-            "copyright", "legal advice", "legal counsel"
+            "agreement", "litigation", "settlement",
+            "intellectual property", "trademark", "copyright",
+            "legal advice", "legal counsel"
         ],
         "weight": 1
     },
     "Vehicles / Transportation": {
         "keywords": [
+            # Deutsch
+            "fahrzeug", "auto", "pkw", "lkw", "transporter", "flotte",
+            "wartung", "reparatur", "werkstatt", "inspektion",
+            "tankstelle", "benzin", "diesel", "kraftstoff", "öl",
+            "reifen", "batterie", "zulassung", "maut", "parken",
+            "klimaanlage", "kältemittel", "tüv", "hauptuntersuchung",
+            "kfz", "autowerkstatt",
+            # English
             "vehicle", "car", "truck", "van", "fleet",
-            "maintenance", "repair", "service", "inspection",
+            "repair", "service", "inspection",
             "fuel", "gas", "oil", "tires", "battery",
             "registration", "toll", "parking"
         ],
@@ -145,8 +220,12 @@ CATEGORIES = {
     },
     "Utilities / Telecom": {
         "keywords": [
-            "electricity", "water", "gas", "heating",
-            "internet", "broadband", "phone", "mobile",
+            # Deutsch
+            "strom", "wasser", "gas", "heizung", "internet", "telefon",
+            "mobilfunk", "telekommunikation", "festnetz",
+            "müllentsorgung", "entsorgung", "stadtwerke",
+            # English
+            "electricity", "broadband", "phone", "mobile",
             "telecom", "telephone", "cellular", "voip",
             "waste disposal", "recycling", "sanitation"
         ],
@@ -154,18 +233,28 @@ CATEGORIES = {
     },
     "Membership / Subscriptions": {
         "keywords": [
+            # Deutsch
+            "mitgliedschaft", "abonnement", "jahresbeitrag", "verband",
+            "berufsverband", "industrie- und handelskammer", "ihk",
+            "netzwerk", "beitrag", "verlängerung", "anmeldung",
+            # English
             "membership", "subscription", "annual fee",
             "association", "professional organization",
-            "chamber of commerce", "network", "alliance",
+            "chamber of commerce", "alliance",
             "dues", "renewal", "enrollment"
         ],
         "weight": 1
     },
     "Banking / Finance": {
         "keywords": [
-            "bank", "banking", "loan", "interest",
-            "mortgage", "credit", "financing", "investment",
-            "stock", "trading", "dividend", "capital",
+            # Deutsch
+            "bank", "bankwesen", "kredit", "zinsen", "hypothek",
+            "finanzierung", "investition", "aktie", "handel",
+            "dividende", "kapital", "finanzdienstleistung",
+            "vermögensverwaltung", "kontoführung",
+            # English
+            "banking", "loan", "interest", "mortgage", "financing",
+            "investment", "stock", "trading", "dividend", "capital",
             "financial services", "asset management"
         ],
         "weight": 1
@@ -199,9 +288,9 @@ def suggest_category(invoice_data: dict) -> str:
     """
     # Combine all text for analysis
     text = " ".join([
-        invoice_data.get("lieferant", ""),
-        invoice_data.get("rechnungsnummer", ""),
-        " ".join([p.get("artikel", "") for p in invoice_data.get("positionen", [])])
+        invoice_data.get("lieferant") or "",
+        invoice_data.get("rechnungsnummer") or "",
+        " ".join([p.get("artikel") or "" for p in invoice_data.get("positionen") or []])
     ]).lower()
     
     # If no text, return "Other"
@@ -252,7 +341,7 @@ def suggest_tags(invoice_data: dict) -> List[str]:
             tags.append(vendor)
     
     # Extract first category keyword if available
-    text = " ".join([p.get("artikel", "") for p in invoice_data.get("positionen", [])])
+    text = " ".join([p.get("artikel") or "" for p in invoice_data.get("positionen") or []])
     if text:
         # Find first keyword from categories
         for category, config in CATEGORIES.items():
@@ -277,9 +366,9 @@ def suggest_category_with_confidence(invoice_data: dict) -> Dict[str, float]:
         Dictionary of {category: confidence_score}
     """
     text = " ".join([
-        invoice_data.get("lieferant", ""),
-        invoice_data.get("rechnungsnummer", ""),
-        " ".join([p.get("artikel", "") for p in invoice_data.get("positionen", [])])
+        invoice_data.get("lieferant") or "",
+        invoice_data.get("rechnungsnummer") or "",
+        " ".join([p.get("artikel") or "" for p in invoice_data.get("positionen") or []])
     ]).lower()
     
     if not text:
