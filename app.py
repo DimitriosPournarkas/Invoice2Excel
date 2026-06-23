@@ -11,7 +11,7 @@ from pathlib import Path
 from src.extractor import extract_text_from_pdf
 from src.parser import parse_invoice
 from src.exporter import export_to_excel, export_multiple_to_excel
-from src.database import save_invoice_to_db, get_all_invoices, save_correction
+from src.database import save_invoice_to_db, get_all_invoices, save_correction, get_invoice_by_number
 from src.categorizer import suggest_category, get_categories
 
 
@@ -267,6 +267,18 @@ if uploaded_files:
                 category, suggested_category = _category_picker(invoice_data, widget_key=uploaded_file.file_id)
                 invoice_data["category"] = category
 
+            # Duplikat-Warnung: prüfen ob Rechnungsnummer schon in DB existiert
+            rechnungsnummer = invoice_data.get("rechnungsnummer")
+            if rechnungsnummer:
+                existing = get_invoice_by_number(rechnungsnummer)
+                if existing:
+                    st.warning(
+                        f"⚠️ Rechnungsnummer **{rechnungsnummer}** ist bereits in der Datenbank "
+                        f"(ID #{existing['id']}, {existing.get('lieferant') or 'unbekannter Lieferant'}, "
+                        f"{existing.get('datum') or 'kein Datum'}). "
+                        f"Beim Speichern wird der bestehende Eintrag überschrieben."
+                    )
+
             pdf_stem = Path(uploaded_file.name).stem
             output_path = Path("output") / f"{pdf_stem}.xlsx"
             export_to_excel(invoice_data, str(output_path))
@@ -316,6 +328,19 @@ if uploaded_files:
             invoice_data["category"] = category
             categories[uploaded_file.file_id] = category
             suggested_categories[uploaded_file.file_id] = suggested_category
+
+            # Duplikat-Warnung auch im Sammelmodus
+            rechnungsnummer = invoice_data.get("rechnungsnummer")
+            if rechnungsnummer:
+                existing = get_invoice_by_number(rechnungsnummer)
+                if existing:
+                    st.warning(
+                        f"⚠️ Rechnungsnummer **{rechnungsnummer}** ist bereits in der Datenbank "
+                        f"(ID #{existing['id']}, {existing.get('lieferant') or 'unbekannter Lieferant'}, "
+                        f"{existing.get('datum') or 'kein Datum'}). "
+                        f"Beim Speichern wird der bestehende Eintrag überschrieben."
+                    )
+
             invoices_data.append(invoice_data)
 
         output_path = Path("output") / "Rechnungen_Sammelexport.xlsx"
