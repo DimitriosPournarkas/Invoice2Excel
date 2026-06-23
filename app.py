@@ -14,6 +14,42 @@ from src.exporter import export_to_excel, export_multiple_to_excel
 from src.database import save_invoice_to_db, get_all_invoices, save_correction, get_invoice_by_number
 from src.categorizer import suggest_category, get_categories
 
+
+def _pdf_preview(uploaded_file, widget_key: str) -> None:
+    """Zeigt eine seitenweise PDF-Vorschau im Browser an.
+
+    Nutzt pdf2image (schon für OCR installiert) um jede Seite als Bild zu
+    rendern. Bei mehrseitigen PDFs gibt es eine Seitennavigation.
+    Falls pdf2image nicht verfügbar ist, wird ein Hinweis angezeigt.
+    """
+    try:
+        from pdf2image import convert_from_bytes
+    except ImportError:
+        st.info("PDF-Vorschau nicht verfügbar (pdf2image nicht installiert).")
+        return
+
+    try:
+        uploaded_file.seek(0)
+        pdf_bytes = uploaded_file.read()
+        uploaded_file.seek(0)  # Pointer zurücksetzen für spätere Verarbeitung
+
+        pages = convert_from_bytes(pdf_bytes, dpi=150)
+
+        if len(pages) > 1:
+            page_num = st.number_input(
+                f"Seite (1–{len(pages)})",
+                min_value=1,
+                max_value=len(pages),
+                value=1,
+                key=f"pdf_page::{widget_key}",
+            )
+            st.image(pages[page_num - 1], use_container_width=True)
+        else:
+            st.image(pages[0], use_container_width=True)
+
+    except Exception as e:
+        st.warning(f"PDF-Vorschau konnte nicht geladen werden: {e}")
+
 st.set_page_config(page_title="Invoice2Excel", page_icon="🧾")
 
 st.title("🧾 Invoice2Excel")
@@ -218,10 +254,18 @@ if uploaded_files:
             invoice_data = _process_pdf(uploaded_file)
 
             st.subheader(f"Erkannte Rechnungsdaten: {uploaded_file.name}")
-            invoice_data = _editable_invoice_form(invoice_data, widget_key=uploaded_file.file_id)
 
-            category, suggested_category = _category_picker(invoice_data, widget_key=uploaded_file.file_id)
-            invoice_data["category"] = category
+            # Zwei-Spalten-Layout: links PDF-Vorschau, rechts editierbares Formular
+            col_preview, col_form = st.columns([1, 1])
+
+            with col_preview:
+                st.write("**📄 PDF-Vorschau**")
+                _pdf_preview(uploaded_file, widget_key=uploaded_file.file_id)
+
+            with col_form:
+                invoice_data = _editable_invoice_form(invoice_data, widget_key=uploaded_file.file_id)
+                category, suggested_category = _category_picker(invoice_data, widget_key=uploaded_file.file_id)
+                invoice_data["category"] = category
 
             # Duplikat-Warnung: prüfen ob Rechnungsnummer schon in DB existiert
             rechnungsnummer = invoice_data.get("rechnungsnummer")
@@ -272,7 +316,13 @@ if uploaded_files:
             invoice_data["source_file"] = uploaded_file.name
 
             st.subheader(f"Erkannte Rechnungsdaten: {uploaded_file.name}")
-            invoice_data = _editable_invoice_form(invoice_data, widget_key=uploaded_file.file_id)
+
+            col_preview, col_form = st.columns([1, 1])
+            with col_preview:
+                st.write("**📄 PDF-Vorschau**")
+                _pdf_preview(uploaded_file, widget_key=uploaded_file.file_id)
+            with col_form:
+                invoice_data = _editable_invoice_form(invoice_data, widget_key=uploaded_file.file_id)
 
             category, suggested_category = _category_picker(invoice_data, widget_key=uploaded_file.file_id)
             invoice_data["category"] = category
