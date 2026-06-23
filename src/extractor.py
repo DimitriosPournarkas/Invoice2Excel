@@ -7,13 +7,15 @@ For scanned PDFs (no embedded text), it automatically switches to OCR
 using Tesseract. Tesseract must be installed:
 https://github.com/UB-Mannheim/tesseract/wiki
 """
-import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
 import pdfplumber
 
 # Minimum character count per page - if the extracted text falls below this,
 # the page is classified as a scan and reprocessed via OCR.
 _MIN_TEXT_LENGTH = 50
+
+# Path to Tesseract executable on Windows. Adjust if installed elsewhere.
+_TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 
 def _ocr_available() -> bool:
@@ -39,6 +41,10 @@ def _ocr_page(pdf_path: str, page_number: int) -> str:
     """
     import pytesseract
     from pdf2image import convert_from_path
+
+    # Set Tesseract path here, inside the function, so the module-level
+    # import of extractor.py never fails even if pytesseract is not installed.
+    pytesseract.pytesseract.tesseract_cmd = _TESSERACT_CMD
 
     images = convert_from_path(
         pdf_path,
@@ -68,7 +74,6 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         The extracted text as a string (all pages concatenated).
     """
     full_text = []
-    ocr_needed = False
 
     with pdfplumber.open(pdf_path) as pdf:
         for page_number, page in enumerate(pdf.pages, start=1):
@@ -78,7 +83,6 @@ def extract_text_from_pdf(pdf_path: str) -> str:
                 full_text.append(page_text)
             else:
                 # Page has no usable text → OCR required
-                ocr_needed = True
                 if _ocr_available():
                     ocr_text = _ocr_page(pdf_path, page_number)
                     if ocr_text.strip():
