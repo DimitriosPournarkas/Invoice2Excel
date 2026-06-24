@@ -11,3 +11,4 @@ build/Invoice2Excel/base_library.zip
 Invoice2Excel.spec
 /build
 /dist
+*.exe
