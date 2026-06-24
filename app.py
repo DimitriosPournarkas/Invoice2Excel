@@ -16,12 +16,7 @@ from src.categorizer import suggest_category, get_categories
 
 
 def _pdf_preview(uploaded_file, widget_key: str) -> None:
-    """Zeigt eine seitenweise PDF-Vorschau im Browser an.
-
-    Nutzt pdf2image (schon für OCR installiert) um jede Seite als Bild zu
-    rendern. Bei mehrseitigen PDFs gibt es eine Seitennavigation.
-    Falls pdf2image nicht verfügbar ist, wird ein Hinweis angezeigt.
-    """
+    """Zeigt eine seitenweise PDF-Vorschau im Browser an."""
     try:
         from pdf2image import convert_from_bytes
     except ImportError:
@@ -31,7 +26,7 @@ def _pdf_preview(uploaded_file, widget_key: str) -> None:
     try:
         uploaded_file.seek(0)
         pdf_bytes = uploaded_file.read()
-        uploaded_file.seek(0)  # Pointer zurücksetzen für spätere Verarbeitung
+        uploaded_file.seek(0)
 
         pages = convert_from_bytes(pdf_bytes, dpi=150)
 
@@ -50,6 +45,7 @@ def _pdf_preview(uploaded_file, widget_key: str) -> None:
     except Exception as e:
         st.warning(f"PDF-Vorschau konnte nicht geladen werden: {e}")
 
+
 st.set_page_config(page_title="Invoice2Excel", page_icon="🧾")
 
 st.title("🧾 Invoice2Excel")
@@ -57,7 +53,10 @@ st.write("PDF-Rechnung(en) hochladen, Daten automatisch extrahieren und als Exce
 
 # --- Datei-Upload ---
 uploaded_files = st.file_uploader(
-    "PDF-Rechnung(en) auswählen", type=["pdf"], accept_multiple_files=True
+    "PDF-Rechnung(en) auswählen",
+    type=["pdf"],
+    accept_multiple_files=True,
+    help="Tipp: Im Datei-Dialog Strg+A drücken um alle PDFs in einem Ordner auf einmal auszuwählen.",
 )
 
 combine_files = False
@@ -67,56 +66,55 @@ if uploaded_files and len(uploaded_files) > 1:
     )
 
 # --- Ordner scannen ---
-st.divider()
-st.subheader("📂 Ordner scannen")
-st.write("Alle PDFs in einem lokalen Ordner auf einmal einlesen und direkt in DB speichern.")
+with st.expander("📂 Ordner scannen (fortgeschritten)"):
+    st.write("Alle PDFs in einem lokalen Ordner auf einmal einlesen und direkt in DB speichern.")
 
-folder_path = st.text_input(
-    "Ordnerpfad",
-    placeholder=r"z.B. C:\Rechnungen\2026",
-    help="Absoluter Pfad zum Ordner mit den PDF-Rechnungen.",
-)
+    folder_path = st.text_input(
+        "Ordnerpfad",
+        placeholder=r"z.B. C:\Rechnungen\2026",
+        help="Absoluter Pfad zum Ordner mit den PDF-Rechnungen.",
+    )
 
-scan_clicked = st.button("🔍 Ordner scannen", disabled=not folder_path)
+    scan_clicked = st.button("🔍 Ordner scannen", disabled=not folder_path)
 
-if scan_clicked and folder_path:
-    folder = Path(folder_path.strip())
-    if not folder.exists():
-        st.error(f"Ordner nicht gefunden: {folder}")
-    elif not folder.is_dir():
-        st.error(f"Das ist kein Ordner: {folder}")
-    else:
-        pdf_files = sorted(folder.glob("*.pdf"))
-        if not pdf_files:
-            st.warning(f"Keine PDF-Dateien in {folder} gefunden.")
+    if scan_clicked and folder_path:
+        folder = Path(folder_path.strip())
+        if not folder.exists():
+            st.error(f"Ordner nicht gefunden: {folder}")
+        elif not folder.is_dir():
+            st.error(f"Das ist kein Ordner: {folder}")
         else:
-            st.info(f"{len(pdf_files)} PDF(s) gefunden – werden jetzt verarbeitet...")
-            Path("output").mkdir(exist_ok=True)
-            erfolge = 0
-            fehler = []
-            fortschritt = st.progress(0)
+            pdf_files = sorted(folder.glob("*.pdf"))
+            if not pdf_files:
+                st.warning(f"Keine PDF-Dateien in {folder} gefunden.")
+            else:
+                st.info(f"{len(pdf_files)} PDF(s) gefunden – werden jetzt verarbeitet...")
+                Path("output").mkdir(exist_ok=True)
+                erfolge = 0
+                fehler = []
+                fortschritt = st.progress(0)
 
-            for i, pdf_path in enumerate(pdf_files):
-                try:
-                    text = extract_text_from_pdf(str(pdf_path))
-                    invoice_data = parse_invoice(text)
-                    invoice_data["source_file"] = pdf_path.name
-                    category = suggest_category(invoice_data)
-                    invoice_data["category"] = category
-                    output_path = Path("output") / f"{pdf_path.stem}.xlsx"
-                    export_to_excel(invoice_data, str(output_path))
-                    save_invoice_to_db(invoice_data, category=category)
-                    erfolge += 1
-                except Exception as e:
-                    fehler.append((pdf_path.name, str(e)))
-                fortschritt.progress((i + 1) / len(pdf_files))
+                for i, pdf_path in enumerate(pdf_files):
+                    try:
+                        text = extract_text_from_pdf(str(pdf_path))
+                        invoice_data = parse_invoice(text)
+                        invoice_data["source_file"] = pdf_path.name
+                        category = suggest_category(invoice_data)
+                        invoice_data["category"] = category
+                        output_path = Path("output") / f"{pdf_path.stem}.xlsx"
+                        export_to_excel(invoice_data, str(output_path))
+                        save_invoice_to_db(invoice_data, category=category)
+                        erfolge += 1
+                    except Exception as e:
+                        fehler.append((pdf_path.name, str(e)))
+                    fortschritt.progress((i + 1) / len(pdf_files))
 
-            if erfolge:
-                st.success(f"{erfolge} Rechnung(en) verarbeitet, als Excel exportiert und in DB gespeichert ✅")
-            if fehler:
-                with st.expander(f"⚠️ {len(fehler)} Fehler beim Verarbeiten"):
-                    for name, err in fehler:
-                        st.write(f"**{name}**: {err}")
+                if erfolge:
+                    st.success(f"{erfolge} Rechnung(en) verarbeitet, als Excel exportiert und in DB gespeichert ✅")
+                if fehler:
+                    with st.expander(f"⚠️ {len(fehler)} Fehler beim Verarbeiten"):
+                        for name, err in fehler:
+                            st.write(f"**{name}**: {err}")
 
 st.divider()
 
@@ -147,7 +145,6 @@ FIELD_LABELS = {
 NUMBER_FIELDS = {"betrag_netto", "mwst", "betrag_brutto"}
 EXCLUDED_FIELDS = {"category", "tags", "source_file"}
 
-# Spalten-Konfiguration für den Positionen-Editor
 POSITIONEN_COLUMN_CONFIG = {
     "artikel":      st.column_config.TextColumn("Artikel / Beschreibung", width="large"),
     "menge":        st.column_config.NumberColumn("Menge", format="%.2f", width="small"),
@@ -158,10 +155,8 @@ POSITIONEN_COLUMN_CONFIG = {
 
 
 def _editable_invoice_form(invoice_data: dict, widget_key: str) -> dict:
-    """Editierbares Formular für alle erkannten Rechnungsfelder inkl. Positionen."""
     updated = dict(invoice_data)
 
-    # --- Skalare Felder ---
     scalar_keys = [
         key for key, value in invoice_data.items()
         if key != "positionen"
@@ -189,16 +184,11 @@ def _editable_invoice_form(invoice_data: dict, widget_key: str) -> dict:
                     key=f"{key}::{widget_key}",
                 )
 
-    # --- Positionen editierbar ---
     positionen = invoice_data.get("positionen") or []
     st.write("**Positionen**")
 
-    # Sicherstellen dass alle erwarteten Spalten vorhanden sind
     default_row = {"artikel": "", "menge": 1.0, "einzelpreis": 0.0, "gesamtpreis": 0.0}
-    positionen_normalized = [
-        {**default_row, **pos} for pos in positionen
-    ]
-
+    positionen_normalized = [{**default_row, **pos} for pos in positionen]
     df = pd.DataFrame(positionen_normalized) if positionen_normalized else pd.DataFrame(columns=list(default_row.keys()))
 
     edited_df = st.data_editor(
@@ -210,7 +200,6 @@ def _editable_invoice_form(invoice_data: dict, widget_key: str) -> dict:
         hide_index=True,
     )
 
-    # Leere Zeilen (kein Artikel) rausfiltern
     updated["positionen"] = [
         row for row in edited_df.to_dict("records")
         if str(row.get("artikel", "")).strip()
@@ -255,7 +244,6 @@ if uploaded_files:
 
             st.subheader(f"Erkannte Rechnungsdaten: {uploaded_file.name}")
 
-            # Zwei-Spalten-Layout: links PDF-Vorschau, rechts editierbares Formular
             col_preview, col_form = st.columns([1, 1])
 
             with col_preview:
@@ -267,7 +255,7 @@ if uploaded_files:
                 category, suggested_category = _category_picker(invoice_data, widget_key=uploaded_file.file_id)
                 invoice_data["category"] = category
 
-            # Duplikat-Warnung: prüfen ob Rechnungsnummer schon in DB existiert
+            # Duplikat-Warnung
             rechnungsnummer = invoice_data.get("rechnungsnummer")
             if rechnungsnummer:
                 existing = get_invoice_by_number(rechnungsnummer)
