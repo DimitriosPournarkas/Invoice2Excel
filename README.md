@@ -9,4 +9,4 @@ First Release:
 ![App](Pictures/App2.png)
 ![App](Pictures/App3.png)
 ### Datenbankansicht
-![Database](Pictures/App3.png)
+![Database](Pictures/Database.png)
