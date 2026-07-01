@@ -2,6 +2,18 @@
 A Python application that automatically extracts invoice information from PDF documents and exports the data to Excel spreadsheets.
 First Release:
 [**Release**](../../releases/latest)
+## Usage
+### Prerequisites
+Install [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) and make sure to select the **German language pack (deu)** during setup.
+
+### Setup
+
+```bash
+git clone https://github.com/DimitriosPournarkas/Invoice2Excel.git
+cd Invoice2Excel
+pip install -r requirements.txt
+python start.py
+```
 ## GUI Screenshots
 
 ### Upload of invoice
