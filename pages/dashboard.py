@@ -99,7 +99,7 @@ else:
 st.divider()
 
 # --- Top Lieferanten ---
-st.subheader("Top Lieferanten")
+st.subheader("Top Rechnungssteller")
 
 top_n = st.slider("Anzahl anzeigen", min_value=3, max_value=20, value=10)
 suppliers = get_top_suppliers(limit=top_n)
@@ -107,16 +107,17 @@ suppliers = get_top_suppliers(limit=top_n)
 if suppliers:
     df_sup = pd.DataFrame(suppliers)
     df_sup = df_sup.rename(columns={
-        "lieferant": "Lieferant",
+        "lieferant": "Rechnungssteller",
         "count": "Anzahl Rechnungen",
         "total": "Gesamtbetrag (€)",
         "average": "Ø Betrag (€)",
     })
-    df_sup = df_sup.set_index("Lieferant")
+    # WICHTIG: Hier "Rechnungssteller" verwenden (nicht "Lieferant"!)
+    df_sup = df_sup.set_index("Rechnungssteller")
     df_sup["Gesamtbetrag (€)"] = df_sup["Gesamtbetrag (€)"].round(2)
     df_sup["Ø Betrag (€)"] = df_sup["Ø Betrag (€)"].round(2)
 
-    st.bar_chart(df_sup["Gesamtbetrag (€)"], x_label="Lieferant", y_label="Gesamtbetrag (€)")
+    st.bar_chart(df_sup["Gesamtbetrag (€)"], x_label="Rechnungssteller", y_label="Gesamtbetrag (€)")
     st.dataframe(df_sup, use_container_width=True)
 else:
     st.info("Keine Lieferantendaten verfügbar.")

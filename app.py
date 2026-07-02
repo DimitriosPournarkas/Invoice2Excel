@@ -90,7 +90,6 @@ with st.expander("📂 Ordner scannen (fortgeschritten)"):
                 st.warning(f"Keine PDF-Dateien in {folder} gefunden.")
             else:
                 st.info(f"{len(pdf_files)} PDF(s) gefunden – werden jetzt verarbeitet...")
-                Path("output").mkdir(exist_ok=True)
                 erfolge = 0
                 fehler = []
                 fortschritt = st.progress(0)
@@ -102,8 +101,8 @@ with st.expander("📂 Ordner scannen (fortgeschritten)"):
                         invoice_data["source_file"] = pdf_path.name
                         category = suggest_category(invoice_data)
                         invoice_data["category"] = category
-                        output_path = Path("output") / f"{pdf_path.stem}.xlsx"
-                        export_to_excel(invoice_data, str(output_path))
+                        
+                        # NUR in Datenbank speichern - KEINE Excel-Datei auf Festplatte
                         save_invoice_to_db(invoice_data, category=category)
                         erfolge += 1
                     except Exception as e:
@@ -111,7 +110,7 @@ with st.expander("📂 Ordner scannen (fortgeschritten)"):
                     fortschritt.progress((i + 1) / len(pdf_files))
 
                 if erfolge:
-                    st.success(f"{erfolge} Rechnung(en) verarbeitet, als Excel exportiert und in DB gespeichert ✅")
+                    st.success(f"{erfolge} Rechnung(en) verarbeitet und in DB gespeichert ✅")
                 if fehler:
                     with st.expander(f"⚠️ {len(fehler)} Fehler beim Verarbeiten"):
                         for name, err in fehler:
@@ -136,7 +135,7 @@ def _process_pdf(uploaded_file) -> dict:
 FIELD_LABELS = {
     "rechnungsnummer": "Rechnungsnummer",
     "datum": "Datum (TT.MM.JJJJ)",
-    "lieferant": "Lieferant / Name",
+    "lieferant": "Rechnungssteller",
     "adresse": "Adresse",
     "iban": "IBAN",
     "betrag_netto": "Betrag netto",
@@ -237,7 +236,7 @@ def _save_to_db_once(uploaded_file, invoice_data: dict, selected_category: str, 
 
 
 if uploaded_files:
-    Path("output").mkdir(exist_ok=True)
+    # Kein "output" Ordner mehr nötig!
 
     if len(uploaded_files) == 1 or not combine_files:
         for uploaded_file in uploaded_files:
@@ -268,22 +267,24 @@ if uploaded_files:
                     )
 
             pdf_stem = Path(uploaded_file.name).stem
-            output_path = Path("output") / f"{pdf_stem}.xlsx"
-            export_to_excel(invoice_data, str(output_path))
+            
+            # Excel in den Arbeitsspeicher exportieren (keine Datei auf Festplatte)
+            excel_buffer = io.BytesIO()
+            export_to_excel(invoice_data, excel_buffer)
+            excel_buffer.seek(0)
 
             db_key = f"saved_to_db::{uploaded_file.file_id}"
             already_saved = st.session_state.get(db_key) is not None
 
             col1, col2 = st.columns(2)
             with col1:
-                with open(output_path, "rb") as f:
-                    st.download_button(
-                        label=f"⬇️ Excel herunterladen ({output_path.name})",
-                        data=f,
-                        file_name=output_path.name,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key=f"download::{uploaded_file.file_id}",
-                    )
+                st.download_button(
+                    label=f"⬇️ Excel herunterladen ({pdf_stem}.xlsx)",
+                    data=excel_buffer,
+                    file_name=f"{pdf_stem}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"download::{uploaded_file.file_id}",
+                )
             with col2:
                 if already_saved:
                     st.button("✅ In Datenbank gespeichert", disabled=True, key=f"db_done::{uploaded_file.file_id}")
@@ -330,18 +331,19 @@ if uploaded_files:
 
             invoices_data.append(invoice_data)
 
-        output_path = Path("output") / "Rechnungen_Sammelexport.xlsx"
-        export_multiple_to_excel(invoices_data, str(output_path))
+        # Sammelexport in den Arbeitsspeicher (keine Datei auf Festplatte)
+        combined_buffer = io.BytesIO()
+        export_multiple_to_excel(invoices_data, combined_buffer)
+        combined_buffer.seek(0)
 
         col1, col2 = st.columns(2)
         with col1:
-            with open(output_path, "rb") as f:
-                st.download_button(
-                    label=f"⬇️ Excel herunterladen ({output_path.name})",
-                    data=f,
-                    file_name=output_path.name,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                )
+            st.download_button(
+                label="⬇️ Excel herunterladen (Rechnungen_Sammelexport.xlsx)",
+                data=combined_buffer,
+                file_name="Rechnungen_Sammelexport.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
         with col2:
             if st.button("💾 Alle in Datenbank speichern"):
                 for uploaded_file, invoice_data in zip(uploaded_files, invoices_data):

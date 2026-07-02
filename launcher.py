@@ -1,4 +1,3 @@
-
 import os
 import sys
 import socket
@@ -30,13 +29,13 @@ def _get_base_dir() -> Path:
 
 
 def _get_writable_dir() -> Path:
-    """Writable directory next to the .exe for DB and Excel exports."""
+    """Writable directory next to the .exe for DB."""
     exe_path = Path(sys.argv[0])
     if exe_path.suffix.lower() == ".exe":
         writable = exe_path.parent
     else:
         writable = Path(__file__).parent
-    (writable / "output").mkdir(parents=True, exist_ok=True)
+    # KEIN output-Ordner mehr!
     return writable
 
 
@@ -50,7 +49,7 @@ def main():
     if streamlit_static.exists():
         os.environ["STREAMLIT_STATIC_PATH"] = str(streamlit_static)
 
-    # Pass DB and output paths to the app
+    # Pass DB path to the app
     os.environ["INVOICE2EXCEL_DATA_DIR"] = str(writable_dir)
 
     app_path = base_dir / "app.py"
