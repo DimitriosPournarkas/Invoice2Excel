@@ -1,27 +1,38 @@
 # Invoice2Excel
-A Python application that automatically extracts invoice information from PDF documents and exports the data to Excel spreadsheets.
-First Release:
-[**Release**](../../releases/latest)
+ 
+A local Python application that automatically extracts structured data from PDF invoices (including scanned documents via OCR) and exports it to Excel. All data is stored in a local SQLite database and can be analyzed via a built-in dashboard.
+ 
+First Release: [**Release**](../../releases/latest)
+ 
+---
+ 
 ## Usage
-### Prerequisites
-Install [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) and make sure to select the **German language pack (deu)** during setup.
-
-### Setup
-
+ 
+### Option 1 – Standalone .exe (no Python required)
+ 
+Download the latest `Invoice2Excel.exe` from the [Releases](../../releases/latest) page and double-click to launch. The browser opens automatically after a few seconds.
+ 
+The database (`invoices.db`) and Excel exports (`output/`) are created in the same folder as the `.exe`.
+ 
+### Option 2 – Run from source
+ 
 ```bash
 git clone https://github.com/DimitriosPournarkas/Invoice2Excel.git
 cd Invoice2Excel
 pip install -r requirements.txt
 python start.py
 ```
-## GUI Screenshots
-
-### Upload of invoice
-![App](Pictures/App.png)
-![App](Pictures/App2.png)
-![App](Pictures/App3.png)
-### Datenbankansicht
-![Database](Pictures/Database.png)
+ 
+The app opens automatically in your browser at `http://localhost:8501`.
+ 
+### Tesseract OCR (optional)
+ 
+> **Note:** Tesseract OCR is only required for scanned (image-based) PDFs.
+> Digitally created PDFs work out of the box without any additional installation.
+ 
+If you need OCR support, install [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) and make sure to select the **German language pack (deu)** during setup.
+ 
+---
 ## Features
  
 - **PDF Upload** – Upload one or multiple invoices at once. Use `Ctrl+A` in the file dialog to select an entire folder at once.
@@ -35,3 +46,13 @@ python start.py
 - **SQLite Database** – All invoices are stored locally in `invoices.db`. The schema is automatically migrated when new fields are added.
 - **Database Editor** – Edit or delete any invoice directly in the browser, including individual line items.
 - **Dashboard** – Visual overview of spending by category, monthly trend (with year filter), and top suppliers.
+---
+## GUI Screenshots
+
+### Upload of invoice
+![App](Pictures/App.png)
+![App](Pictures/App2.png)
+![App](Pictures/App3.png)
+### Datenbankansicht
+![Database](Pictures/Database.png)
+
