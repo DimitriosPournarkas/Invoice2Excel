@@ -4,6 +4,7 @@ Invoice2Excel - Streamlit main application
 
 import streamlit as st
 import tempfile
+import io
 import os
 import pandas as pd
 from pathlib import Path
@@ -255,7 +256,6 @@ if uploaded_files:
                 category, suggested_category = _category_picker(invoice_data, widget_key=uploaded_file.file_id)
                 invoice_data["category"] = category
 
-            # Duplikat-Warnung
             rechnungsnummer = invoice_data.get("rechnungsnummer")
             if rechnungsnummer:
                 existing = get_invoice_by_number(rechnungsnummer)
@@ -317,7 +317,6 @@ if uploaded_files:
             categories[uploaded_file.file_id] = category
             suggested_categories[uploaded_file.file_id] = suggested_category
 
-            # Duplikat-Warnung auch im Sammelmodus
             rechnungsnummer = invoice_data.get("rechnungsnummer")
             if rechnungsnummer:
                 existing = get_invoice_by_number(rechnungsnummer)
@@ -356,9 +355,36 @@ if uploaded_files:
                 st.success("Alle Rechnungen in Datenbank gespeichert ✅")
                 st.rerun()
 
+# --- Gespeicherte Rechnungen mit Download ---
 with st.expander("📊 Gespeicherte Rechnungen (Datenbank)"):
-    invoices = get_all_invoices()
-    if invoices:
-        st.dataframe(invoices)
-    else:
+    invoices = get_all_invoices(include_positions=True)
+    if not invoices:
         st.write("Noch keine Rechnungen in der Datenbank gespeichert.")
+    else:
+        # Tabelle ohne positionen-Spalte anzeigen
+        df_preview = pd.DataFrame(invoices).drop(columns=["positionen"], errors="ignore")
+        st.dataframe(df_preview, use_container_width=True)
+
+        st.write("**Als Excel herunterladen:**")
+
+        for inv in invoices:
+            label = (
+                f"{inv.get('lieferant') or 'Unbekannt'} – "
+                f"{inv.get('rechnungsnummer') or 'o.Nr.'} – "
+                f"{inv.get('datum') or 'o.Datum'}"
+            )
+            inv_id = inv['id']
+            rech_nr = inv.get('rechnungsnummer') or f'Rechnung_{inv_id}'
+
+            # In-Memory Export – keine Datei auf Disk, kein output/-Ordner nötig
+            buffer = io.BytesIO()
+            export_to_excel(inv, buffer)
+            buffer.seek(0)
+
+            st.download_button(
+                label=f"⬇️ {label}",
+                data=buffer,
+                file_name=f"{rech_nr}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key=f"db_download::{inv_id}",
+            )

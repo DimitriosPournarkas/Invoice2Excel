@@ -42,7 +42,7 @@ COLUMN_CONFIG = {
     "id": st.column_config.NumberColumn("ID", disabled=True, width="small"),
     "rechnungsnummer": st.column_config.TextColumn("Rechnungsnummer"),
     "datum": st.column_config.TextColumn("Datum (TT.MM.JJJJ)"),
-    "lieferant": st.column_config.TextColumn("Lieferant"),
+    "lieferant": st.column_config.TextColumn("Rechnungssteller"),
     "betrag_netto": st.column_config.NumberColumn("Netto (€)", format="%.2f"),
     "mwst": st.column_config.NumberColumn("MwSt. (€)", format="%.2f"),
     "betrag_brutto": st.column_config.NumberColumn("Brutto (€)", format="%.2f"),
