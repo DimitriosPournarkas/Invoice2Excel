@@ -12,7 +12,7 @@ Release: [**Release**](../../releases/latest)
  
 Download the latest `Invoice2Excel.exe` from the [Releases](../../releases/latest) page and double-click to launch. The browser opens automatically after a few seconds.
  
-The database (`invoices.db`) and Excel exports (`output/`) are created in the same folder as the `.exe`.
+The database (`invoices.db`) will be created in the same folder as the `.exe`.
  
 ### Option 2 – Run from source
  
