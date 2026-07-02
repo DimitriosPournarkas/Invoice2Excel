@@ -2,7 +2,7 @@
  
 A local Python application that automatically extracts structured data from PDF invoices (including scanned documents via OCR) and exports it to Excel. All data is stored in a local SQLite database and can be analyzed via a built-in dashboard.
  
-First Release: [**Release**](../../releases/latest)
+Release: [**Release**](../../releases/latest)
  
 ---
  
